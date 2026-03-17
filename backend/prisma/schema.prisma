@@ -1,0 +1,17 @@
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Usuario {
+  id              Int      @id @default(autoincrement())
+  nombre_usuario  String
+  email           String   @unique
+  password_hash   String
+  dias_no_rep     Int?     @default(7)
+  dias_olvido     Int?     @default(30)
+  activo          Boolean  @default(true) // Para borrado lógico
+}
