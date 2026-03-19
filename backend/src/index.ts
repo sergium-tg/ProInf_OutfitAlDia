@@ -1,105 +1,166 @@
-import express from 'express';
-import bcrypt from 'bcrypt';
-import jwt from 'jsonwebtoken';
-import { PrismaClient } from '@prisma/client';
-import cors from 'cors';
 import 'dotenv/config';
+import express from 'express';
+import cors from 'cors';
+import { PrismaClient } from '@prisma/client';
 import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
+import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
 
 const app = express();
 
-// Configuración del Driver Adapter para Prisma 7
+// Configuración de Prisma con el adaptador de PostgreSQL
 const connectionString = process.env.DATABASE_URL;
 const pool = new Pool({ connectionString });
 const adapter = new PrismaPg(pool as any);
 const prisma = new PrismaClient({ adapter });
 
-app.use(express.json());
+const JWT_SECRET = process.env.JWT_SECRET || 'super_secreto_outfit_al_dia_123';
+
 app.use(cors());
+app.use(express.json());
 
-const JWT_SECRET = process.env.JWT_SECRET || 'supersecret';
+// ==========================================
+// FUNCIÓN DE VALIDACIÓN DE CONTRASEÑA
+// ==========================================
+const validarPassword = (password: string) => {
+  // 8+ caracteres, minúscula, mayúscula, número y carácter especial
+  const regex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
+  return regex.test(password);
+};
 
-// Middleware de Autenticación JWT [cite: 39]
+// ==========================================
+// MIDDLEWARE DE AUTENTICACIÓN
+// ==========================================
 const authenticateToken = (req: any, res: any, next: any) => {
-  const token = req.headers['authorization']?.split(' ')[1];
-  if (!token) return res.sendStatus(401);
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  
+  if (!token) return res.status(401).json({ error: 'Acceso denegado. Token no proporcionado.' });
+
   jwt.verify(token, JWT_SECRET, (err: any, user: any) => {
-    if (err) return res.sendStatus(403);
+    if (err) return res.status(403).json({ error: 'Token inválido o ha expirado.' });
     req.user = user;
     next();
   });
 };
 
-// HU-05: Registro de usuario [cite: 29]
-// POST /auth/register [cite: 32]
-app.post('/auth/register', async (req, res) => {
-  const { nombre_usuario, email, password } = req.body;
-
-  // Validación de formato estándar de correo [cite: 34]
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(email)) return res.status(400).json({ error: "Formato de correo inválido" });
-
-  // Validación de seguridad de contraseña (min 8 caracteres, números y letras) [cite: 35]
-  const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$/;
-  if (!passwordRegex.test(password)) return res.status(400).json({ error: "La contraseña debe tener mínimo 8 caracteres, números y letras" });
-
-  try {
-    const password_hash = await bcrypt.hash(password, 10);
-    const user = await prisma.usuario.create({
-      data: { nombre_usuario, email, password_hash }
-    });
-    res.status(201).json({ message: "Usuario creado exitosamente" });
-  } catch (error: any) {
-    // Impedir registros con correos ya existentes [cite: 36]
-    if (error.code === 'P2002') return res.status(400).json({ error: "El correo ya está registrado" });
-    res.status(500).json({ error: "Error en el servidor" });
-  }
-});
-
-// HU-06: Autenticación [cite: 37]
-app.post('/auth/login', async (req, res) => {
+// ==========================================
+// HU-05: Creación de Usuario (Registro)
+// ==========================================
+app.post('/auth/register', async (req: any, res: any) => {
   const { email, password } = req.body;
-  const user = await prisma.usuario.findUnique({ where: { email } });
 
-  // Mensaje genérico ("Credenciales incorrectas") por seguridad [cite: 43]
-  if (!user || !user.activo) return res.status(401).json({ error: "Credenciales incorrectas" });
-
-  const validPassword = await bcrypt.compare(password, user.password_hash);
-  if (!validPassword) return res.status(401).json({ error: "Credenciales incorrectas" });
-
-  // Retornar un token de sesión válido [cite: 42]
-  const token = jwt.sign({ id: user.id }, JWT_SECRET, { expiresIn: '1h' });
-  res.json({ token, user: { id: user.id, nombre_usuario: user.nombre_usuario, email: user.email } });
-});
-
-// HU-07: Edición de Perfil [cite: 44]
-// PATCH /user/profile [cite: 47]
-app.patch('/user/profile', authenticateToken, async (req: any, res) => {
-  const { nombre_usuario, email } = req.body;
-  try {
-    const updatedUser = await prisma.usuario.update({
-      where: { id: req.user.id },
-      data: { nombre_usuario, email }
+  // Validación de seguridad de la contraseña
+  if (!validarPassword(password)) {
+    return res.status(400).json({ 
+      error: 'La contraseña debe tener al menos 8 caracteres, una mayúscula, una minúscula, un número y un carácter especial.' 
     });
-    res.json({ message: "Perfil actualizado", user: updatedUser });
+  }
+
+  try {
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const nombreSugerido = email.split('@')[0];
+    
+    await prisma.usuario.create({
+      data: { 
+        nombre_usuario: nombreSugerido, 
+        email, 
+        password_hash: hashedPassword 
+      }
+    });
+    
+    res.status(201).json({ message: 'Usuario creado exitosamente' });
   } catch (error) {
-    res.status(500).json({ error: "Error al actualizar" });
+    res.status(400).json({ error: 'El correo electrónico ya se encuentra registrado.' });
   }
 });
 
-// HU-09: Eliminación de cuenta [cite: 53]
-app.delete('/user/account', authenticateToken, async (req: any, res) => {
+// ==========================================
+// HU-06: Inicio de Sesión (Login)
+// ==========================================
+app.post('/auth/login', async (req: any, res: any) => {
+  const { email, password } = req.body;
+  
   try {
-    // Borrado lógico (estado: inactivo)
-    await prisma.usuario.update({
-      where: { id: req.user.id },
-      data: { activo: false }
+    const usuario = await prisma.usuario.findUnique({ where: { email } });
+    
+    if (!usuario || !(await bcrypt.compare(password, usuario.password_hash))) {
+      return res.status(401).json({ error: 'Credenciales inválidas' });
+    }
+    
+    const token = jwt.sign({ id: usuario.id, email: usuario.email }, JWT_SECRET, { expiresIn: '24h' });
+    
+    res.json({ 
+      token, 
+      user: { id: usuario.id, nombre_usuario: usuario.nombre_usuario, email: usuario.email } 
     });
-    res.json({ message: "Cuenta eliminada correctamente" });
-  } catch (error) {
-    res.status(500).json({ error: "Error al eliminar la cuenta" });
+  } catch (error) { 
+    res.status(500).json({ error: 'Error interno del servidor' }); 
   }
 });
 
-app.listen(3000, () => console.log('Backend corriendo en el puerto 3000'));
+// ==========================================
+// HU-07: Modificación de Perfil (Actualizar datos o contraseña)
+// ==========================================
+app.patch('/user/profile', authenticateToken, async (req: any, res: any) => {
+  const { nombre_usuario, password } = req.body;
+  
+  try {
+    const data: any = {};
+    
+    if (nombre_usuario) {
+      data.nombre_usuario = nombre_usuario;
+    }
+    
+    if (password) {
+      // Aplicar la misma validación estricta al actualizar la contraseña
+      if (!validarPassword(password)) {
+        return res.status(400).json({ 
+          error: 'La nueva contraseña debe tener al menos 8 caracteres, una mayúscula, una minúscula, un número y un carácter especial.' 
+        });
+      }
+      data.password_hash = await bcrypt.hash(password, 10);
+    }
+
+    const actualizado = await prisma.usuario.update({
+      where: { id: req.user.id },
+      data
+    });
+    
+    res.json({ 
+      user: { id: actualizado.id, nombre_usuario: actualizado.nombre_usuario, email: actualizado.email } 
+    });
+  } catch (error) { 
+    res.status(500).json({ error: 'Error al actualizar el perfil' }); 
+  }
+});
+
+// ==========================================
+// HU-08: Cerrar Sesión (Logout)
+// ==========================================
+// Al utilizar JWT de forma stateless, el logout se maneja en el cliente eliminando el token.
+// Se puede proveer este endpoint opcional para confirmación de la solicitud.
+app.post('/auth/logout', authenticateToken, (req: any, res: any) => {
+  res.json({ message: 'Sesión cerrada correctamente desde el cliente.' });
+});
+
+// ==========================================
+// HU-09: Borrado de Usuario (Eliminación Física)
+// ==========================================
+app.delete('/user/account', authenticateToken, async (req: any, res: any) => {
+  try {
+    await prisma.usuario.delete({ 
+      where: { id: req.user.id } 
+    });
+    res.json({ message: 'Cuenta eliminada definitivamente de la base de datos' });
+  } catch (error) { 
+    res.status(500).json({ error: 'Error al eliminar la cuenta' }); 
+  }
+});
+
+// ==========================================
+// INICIALIZACIÓN DEL SERVIDOR
+// ==========================================
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`🚀 Backend corriendo en el puerto ${PORT}`));
