@@ -91,9 +91,16 @@ app.post('/auth/login', async (req: any, res: any) => {
     
     const token = jwt.sign({ id: usuario.id, email: usuario.email }, JWT_SECRET, { expiresIn: '24h' });
     
+    // Retornamos también dias_no_rep y dias_olvido para que el frontend los guarde en el Context
     res.json({ 
       token, 
-      user: { id: usuario.id, nombre_usuario: usuario.nombre_usuario, email: usuario.email } 
+      user: { 
+        id: usuario.id, 
+        nombre_usuario: usuario.nombre_usuario, 
+        email: usuario.email,
+        dias_no_rep: usuario.dias_no_rep,
+        dias_olvido: usuario.dias_olvido
+      } 
     });
   } catch (error) { 
     res.status(500).json({ error: 'Error interno del servidor' }); 
@@ -104,7 +111,8 @@ app.post('/auth/login', async (req: any, res: any) => {
 // HU-07: Modificación de Perfil (Actualizar datos o contraseña)
 // ==========================================
 app.patch('/user/profile', authenticateToken, async (req: any, res: any) => {
-  const { nombre_usuario, password } = req.body;
+  // 1. Extraemos los nuevos campos del body
+  const { nombre_usuario, password, dias_no_rep, dias_olvido } = req.body;
   
   try {
     const data: any = {};
@@ -114,7 +122,6 @@ app.patch('/user/profile', authenticateToken, async (req: any, res: any) => {
     }
     
     if (password) {
-      // Aplicar la misma validación estricta al actualizar la contraseña
       if (!validarPassword(password)) {
         return res.status(400).json({ 
           error: 'La nueva contraseña debe tener al menos 8 caracteres, una mayúscula, una minúscula, un número y un carácter especial.' 
@@ -123,13 +130,29 @@ app.patch('/user/profile', authenticateToken, async (req: any, res: any) => {
       data.password_hash = await bcrypt.hash(password, 10);
     }
 
+    // 2. Agregamos los campos de días al objeto de actualización si vienen en la petición
+    if (dias_no_rep !== undefined && !isNaN(dias_no_rep)) {
+      data.dias_no_rep = Number(dias_no_rep);
+    }
+
+    if (dias_olvido !== undefined && !isNaN(dias_olvido)) {
+      data.dias_olvido = Number(dias_olvido);
+    }
+
     const actualizado = await prisma.usuario.update({
       where: { id: req.user.id },
       data
     });
     
+    // 3. Devolvemos el usuario con todos sus campos
     res.json({ 
-      user: { id: actualizado.id, nombre_usuario: actualizado.nombre_usuario, email: actualizado.email } 
+      user: { 
+        id: actualizado.id, 
+        nombre_usuario: actualizado.nombre_usuario, 
+        email: actualizado.email,
+        dias_no_rep: actualizado.dias_no_rep,
+        dias_olvido: actualizado.dias_olvido
+      } 
     });
   } catch (error) { 
     res.status(500).json({ error: 'Error al actualizar el perfil' }); 

@@ -1,4 +1,4 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useState, useEffect } from 'react';
 import { 
   IonContent, IonHeader, IonPage, IonTitle, IonToolbar, IonItem, 
   IonLabel, IonInput, IonButton, IonAlert, IonText, IonLoading, useIonToast 
@@ -10,18 +10,29 @@ import axios from 'axios';
 const Profile: React.FC = () => {
   const { user, token, setSession, clearSession } = useContext(AuthContext);
   const history = useHistory();
-  const [present] = useIonToast(); // Hook para mostrar notificaciones (Toasts)
+  const [present] = useIonToast();
   
   const [nuevoNombre, setNuevoNombre] = useState(user?.nombre_usuario || '');
+  
+  // Agregamos los estados para los nuevos campos, inicializados con los datos de context o los defaults
+  const [diasNoRep, setDiasNoRep] = useState(user?.dias_no_rep?.toString() || '7');
+  const [diasOlvido, setDiasOlvido] = useState(user?.dias_olvido?.toString() || '30');
+
   const [nuevaPassword, setNuevaPassword] = useState(''); 
   const [confirmNuevaPassword, setConfirmNuevaPassword] = useState(''); 
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
 
-  // Redirigir si no hay usuario (Seguridad básica)
-  React.useEffect(() => {
-    if (!user) history.push('/login');
+  // Sincronizar estados si el context cambia al recargar
+  useEffect(() => {
+    if (user) {
+      setNuevoNombre(user.nombre_usuario || '');
+      setDiasNoRep(user.dias_no_rep?.toString() || '7');
+      setDiasOlvido(user.dias_olvido?.toString() || '30');
+    } else {
+      history.push('/login');
+    }
   }, [user, history]);
 
   if (!user) return null;
@@ -29,7 +40,6 @@ const Profile: React.FC = () => {
   const handleLogout = () => {
     clearSession();
     history.push('/login');
-    // Mostrar mensaje de éxito al salir
     present({
       message: 'Sesión cerrada correctamente. ¡Vuelve pronto!',
       duration: 2000,
@@ -47,7 +57,14 @@ const Profile: React.FC = () => {
 
     setLoading(true);
     try {
-      const payload: any = { nombre_usuario: nuevoNombre };
+      // Construimos el payload de manera dinámica
+      const payload: any = { 
+        nombre_usuario: nuevoNombre
+      };
+      
+      // Solo los enviamos si no están vacíos
+      if (diasNoRep !== '') payload.dias_no_rep = Number(diasNoRep);
+      if (diasOlvido !== '') payload.dias_olvido = Number(diasOlvido);
       if (nuevaPassword) payload.password = nuevaPassword;
 
       const response = await axios.patch('http://localhost:3000/user/profile', 
@@ -55,6 +72,7 @@ const Profile: React.FC = () => {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       
+      // La respuesta ahora trae todos los campos actualizados
       setSession(token!, response.data.user);
       setNuevaPassword('');
       setConfirmNuevaPassword('');
@@ -97,6 +115,16 @@ const Profile: React.FC = () => {
         <IonItem className="ion-margin-top">
           <IonLabel position="stacked">Nombre de Usuario</IonLabel>
           <IonInput value={nuevoNombre} onIonChange={e => setNuevoNombre(e.detail.value!)} />
+        </IonItem>
+
+        <IonItem className="ion-margin-top">
+          <IonLabel position="stacked">Días sin repetir outfit</IonLabel>
+          <IonInput type="number" min="0" value={diasNoRep} onIonChange={e => setDiasNoRep(e.detail.value!)} />
+        </IonItem>
+
+        <IonItem className="ion-margin-top">
+          <IonLabel position="stacked">Días para olvido de prenda</IonLabel>
+          <IonInput type="number" min="0" value={diasOlvido} onIonChange={e => setDiasOlvido(e.detail.value!)} />
         </IonItem>
 
         <IonItem className="ion-margin-top">
