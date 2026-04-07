@@ -17,12 +17,12 @@ const Login: React.FC = () => {
     try {
       const response = await axios.post('http://localhost:3000/auth/login', { email, password });
       setSession(response.data.token, response.data.user);
-      history.push('/profile');
+      history.push('/home'); // <--- Redirección corregida al menú principal
     } catch (err: any) {
       setError(err.response?.data?.error || 'Credenciales incorrectas.');
     }
   };
-
+  
   return (
     <IonPage>
       <IonHeader>

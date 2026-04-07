@@ -1,3 +1,5 @@
+// backend/prisma/schema.prisma
+
 datasource db {
   provider = "postgresql"
 }
@@ -7,11 +9,35 @@ generator client {
 }
 
 model Usuario {
-  id              Int      @id @default(autoincrement())
+  id              Int       @id @default(autoincrement())
   nombre_usuario  String
-  email           String   @unique
+  email           String    @unique
   password_hash   String
-  dias_no_rep     Int?     @default(7)
-  dias_olvido     Int?     @default(30)
-  activo          Boolean  @default(true) // Para borrado lógico
+  dias_no_rep     Int?      @default(7)
+  dias_olvido     Int?      @default(30)
+  activo          Boolean   @default(true)
+  prendas         Prendas[] // Relación 1 a N con Prendas
+}
+
+model Prendas {
+  id             Int                @id @default(autoincrement())
+  foto_url       String
+  categoria      String
+  color          String
+  estilo         String?
+  ocasion        String?
+  fecha_registro DateTime           @default(now())
+  archivado      Boolean            @default(false)
+  conceptual     Boolean            @default(false)
+  comprar        Boolean            @default(false)
+  usuario_id     Int
+  usuario        Usuario            @relation(fields: [usuario_id], references: [id])
+  historial      Historial_prenda[] // Relación 1 a N con Historial
+}
+
+model Historial_prenda {
+  id          Int      @id @default(autoincrement())
+  fecha_uso   DateTime @default(now())
+  prenda_id   Int
+  prenda      Prendas  @relation(fields: [prenda_id], references: [id], onDelete: Cascade)
 }

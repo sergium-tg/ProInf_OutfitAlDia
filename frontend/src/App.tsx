@@ -1,25 +1,18 @@
-import React, { useContext } from 'react';
 import { Redirect, Route } from 'react-router-dom';
-import { IonApp, IonRouterOutlet, setupIonicReact } from '@ionic/react';
+import { 
+  IonApp, 
+  IonRouterOutlet, 
+  setupIonicReact 
+} from '@ionic/react';
 import { IonReactRouter } from '@ionic/react-router';
-
-// Importación de Páginas
-import Register from './pages/Register';
-import Login from './pages/Login';
-import Profile from './pages/Profile';
-
-// Importación del Contexto de Autenticación
-import { AuthProvider, AuthContext } from './context/AuthContext';
 
 /* Core CSS required for Ionic components to work properly */
 import '@ionic/react/css/core.css';
-
-/* Basic CSS for apps built with Ionic */
 import '@ionic/react/css/normalize.css';
 import '@ionic/react/css/structure.css';
 import '@ionic/react/css/typography.css';
 
-/* Optional CSS flavors that can be disabled */
+/* Optional CSS utils that can be commented out */
 import '@ionic/react/css/padding.css';
 import '@ionic/react/css/float-elements.css';
 import '@ionic/react/css/text-alignment.css';
@@ -30,19 +23,27 @@ import '@ionic/react/css/display.css';
 /* Theme variables */
 import './theme/variables.css';
 
+/* Importación de Páginas */
+import Login from './pages/Login';
+import Register from './pages/Register';
+import Home from './pages/Home';
+import Profile from './pages/Profile';
+import PrendasManager from './pages/PrendasManager'; // Nueva
+import PrendaForm from './pages/PrendaForm';       // Nueva
+
+/* Contexto de Autenticación */
+import { AuthProvider, AuthContext } from './context/AuthContext';
+import { useContext } from 'react';
+
 setupIonicReact();
 
-/**
- * Componente PrivateRoute (HU-08/09)
- * Protege las rutas que requieren que el usuario esté autenticado.
- * Si no hay token, redirige automáticamente al login.
- */
-const PrivateRoute: React.FC<{ component: any; path: string; exact?: boolean }> = ({ component: Component, ...rest }) => {
+// Componente para proteger rutas (Corregido para TypeScript)
+const PrivateRoute: React.FC<{ component: React.ComponentType<any>; path: string; exact?: boolean }> = ({ component: Component, ...rest }) => {
   const { isAuthenticated } = useContext(AuthContext);
   return (
     <Route
       {...rest}
-      render={props =>
+      render={(props) =>
         isAuthenticated ? <Component {...props} /> : <Redirect to="/login" />
       }
     />
@@ -51,26 +52,34 @@ const PrivateRoute: React.FC<{ component: any; path: string; exact?: boolean }> 
 
 const App: React.FC = () => (
   <IonApp>
-    {/* Envolvemos toda la aplicación en el AuthProvider para compartir la sesión */}
     <AuthProvider>
       <IonReactRouter>
         <IonRouterOutlet>
-          
-          {/* HU-05: Ruta para el Registro de Usuarios */}
-          <Route exact path="/register" component={Register} />
-          
-          {/* HU-06: Ruta para el Inicio de Sesión */}
-          <Route exact path="/login" component={Login} />
-          
-          {/* HU-07, HU-08, HU-09: Ruta Protegida del Perfil */}
-          <PrivateRoute exact path="/profile" component={Profile} />
-          
-          {/* Redirección inicial: Si el usuario entra a la raíz, intenta ir al perfil.
-              Si no está logueado, PrivateRoute lo mandará a /login automáticamente. */}
-          <Route exact path="/">
-            <Redirect to="/profile" />
+          {/* Rutas Públicas */}
+          <Route exact path="/login">
+            <Login />
+          </Route>
+          <Route exact path="/register">
+            <Register />
           </Route>
 
+          {/* Rutas Privadas (Requieren Login) */}
+          <PrivateRoute exact path="/home" component={Home} />
+          <PrivateRoute exact path="/profile" component={Profile} />
+          
+          {/* Gestión de Prendas */}
+          <PrivateRoute exact path="/prendas" component={PrendasManager} />
+          
+          {/* Ruta para Crear Prenda (HU-10) */}
+          <PrivateRoute exact path="/prenda/nueva" component={PrendaForm} />
+          
+          {/* Ruta para Editar/Gestionar Prenda (HU-12) */}
+          <PrivateRoute exact path="/prenda/editar/:id" component={PrendaForm} />
+
+          {/* Redirección por defecto */}
+          <Route exact path="/">
+            <Redirect to="/login" />
+          </Route>
         </IonRouterOutlet>
       </IonReactRouter>
     </AuthProvider>

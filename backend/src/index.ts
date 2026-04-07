@@ -24,7 +24,6 @@ app.use(express.json());
 // FUNCIÓN DE VALIDACIÓN DE CONTRASEÑA
 // ==========================================
 const validarPassword = (password: string) => {
-  // 8+ caracteres, minúscula, mayúscula, número y carácter especial
   const regex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
   return regex.test(password);
 };
@@ -51,7 +50,6 @@ const authenticateToken = (req: any, res: any, next: any) => {
 app.post('/auth/register', async (req: any, res: any) => {
   const { email, password } = req.body;
 
-  // Validación de seguridad de la contraseña
   if (!validarPassword(password)) {
     return res.status(400).json({ 
       error: 'La contraseña debe tener al menos 8 caracteres, una mayúscula, una minúscula, un número y un carácter especial.' 
@@ -91,7 +89,6 @@ app.post('/auth/login', async (req: any, res: any) => {
     
     const token = jwt.sign({ id: usuario.id, email: usuario.email }, JWT_SECRET, { expiresIn: '24h' });
     
-    // Retornamos también dias_no_rep y dias_olvido para que el frontend los guarde en el Context
     res.json({ 
       token, 
       user: { 
@@ -108,43 +105,33 @@ app.post('/auth/login', async (req: any, res: any) => {
 });
 
 // ==========================================
-// HU-07: Modificación de Perfil (Actualizar datos o contraseña)
+// HU-07: Modificación de Perfil 
 // ==========================================
 app.patch('/user/profile', authenticateToken, async (req: any, res: any) => {
-  // 1. Extraemos los nuevos campos del body
   const { nombre_usuario, password, dias_no_rep, dias_olvido } = req.body;
   
   try {
     const data: any = {};
     
-    if (nombre_usuario) {
-      data.nombre_usuario = nombre_usuario;
-    }
+    if (nombre_usuario) data.nombre_usuario = nombre_usuario;
     
     if (password) {
       if (!validarPassword(password)) {
         return res.status(400).json({ 
-          error: 'La nueva contraseña debe tener al menos 8 caracteres, una mayúscula, una minúscula, un número y un carácter especial.' 
+          error: 'La nueva contraseña no cumple los requisitos.' 
         });
       }
       data.password_hash = await bcrypt.hash(password, 10);
     }
 
-    // 2. Agregamos los campos de días al objeto de actualización si vienen en la petición
-    if (dias_no_rep !== undefined && !isNaN(dias_no_rep)) {
-      data.dias_no_rep = Number(dias_no_rep);
-    }
-
-    if (dias_olvido !== undefined && !isNaN(dias_olvido)) {
-      data.dias_olvido = Number(dias_olvido);
-    }
+    if (dias_no_rep !== undefined && !isNaN(dias_no_rep)) data.dias_no_rep = Number(dias_no_rep);
+    if (dias_olvido !== undefined && !isNaN(dias_olvido)) data.dias_olvido = Number(dias_olvido);
 
     const actualizado = await prisma.usuario.update({
       where: { id: req.user.id },
       data
     });
     
-    // 3. Devolvemos el usuario con todos sus campos
     res.json({ 
       user: { 
         id: actualizado.id, 
@@ -162,14 +149,12 @@ app.patch('/user/profile', authenticateToken, async (req: any, res: any) => {
 // ==========================================
 // HU-08: Cerrar Sesión (Logout)
 // ==========================================
-// Al utilizar JWT de forma stateless, el logout se maneja en el cliente eliminando el token.
-// Se puede proveer este endpoint opcional para confirmación de la solicitud.
 app.post('/auth/logout', authenticateToken, (req: any, res: any) => {
   res.json({ message: 'Sesión cerrada correctamente desde el cliente.' });
 });
 
 // ==========================================
-// HU-09: Borrado de Usuario (Eliminación Física)
+// HU-09: Borrado de Usuario 
 // ==========================================
 app.delete('/user/account', authenticateToken, async (req: any, res: any) => {
   try {
@@ -179,6 +164,129 @@ app.delete('/user/account', authenticateToken, async (req: any, res: any) => {
     res.json({ message: 'Cuenta eliminada definitivamente de la base de datos' });
   } catch (error) { 
     res.status(500).json({ error: 'Error al eliminar la cuenta' }); 
+  }
+});
+
+// ==========================================
+// RUTAS DE PRENDAS
+// ==========================================
+
+// Obtener todas las prendas del usuario logueado
+app.get('/prendas', authenticateToken, async (req: any, res: any) => {
+  try {
+    const prendas = await prisma.prendas.findMany({
+      where: { usuario_id: req.user.id },
+      include: { 
+        historial: { 
+          orderBy: { fecha_uso: 'desc' }, 
+          take: 1 
+        } 
+      }
+    });
+    res.json(prendas);
+  } catch (error) {
+    res.status(500).json({ error: 'Error al obtener el listado de prendas' });
+  }
+});
+
+// NUEVO: Obtener una prenda específica (Para rellenar el formulario de edición)
+app.get('/prendas/:id', authenticateToken, async (req: any, res: any) => {
+  const { id } = req.params;
+  try {
+    const prenda = await prisma.prendas.findFirst({
+      where: { 
+        id: Number(id),
+        usuario_id: req.user.id 
+      }
+    });
+    
+    if (!prenda) return res.status(404).json({ error: 'Prenda no encontrada' });
+    
+    res.json(prenda);
+  } catch (error) {
+    res.status(500).json({ error: 'Error al obtener los detalles de la prenda' });
+  }
+});
+
+// Crear una nueva prenda
+app.post('/prendas', authenticateToken, async (req: any, res: any) => {
+  const { foto_url, categoria, color, estilo, ocasion } = req.body;
+  
+  try {
+    const nuevaPrenda = await prisma.prendas.create({
+      data: {
+        foto_url,
+        categoria,
+        color,
+        estilo,
+        ocasion,
+        usuario_id: req.user.id
+      }
+    });
+    res.status(201).json(nuevaPrenda);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Error al guardar la prenda en la base de datos' });
+  }
+});
+
+// Editar una prenda existente
+app.put('/prendas/:id', authenticateToken, async (req: any, res: any) => {
+  const { id } = req.params;
+  const { foto_url, categoria, color, estilo, ocasion, conceptual, comprar } = req.body;
+  
+  try {
+    const actualizada = await prisma.prendas.updateMany({
+      where: { 
+        id: Number(id), 
+        usuario_id: req.user.id 
+      },
+      data: { foto_url, categoria, color, estilo, ocasion, conceptual, comprar }
+    });
+
+    if (actualizada.count === 0) {
+      return res.status(404).json({ error: 'Prenda no encontrada o no tienes permisos' });
+    }
+    
+    res.json({ message: 'Prenda actualizada correctamente' });
+  } catch (error) {
+    res.status(500).json({ error: 'Error al actualizar la prenda' });
+  }
+});
+
+// Eliminar una prenda
+app.delete('/prendas/:id', authenticateToken, async (req: any, res: any) => {
+  const { id } = req.params;
+  
+  try {
+    const eliminada = await prisma.prendas.deleteMany({
+      where: { 
+        id: Number(id), 
+        usuario_id: req.user.id 
+      }
+    });
+
+    if (eliminada.count === 0) {
+      return res.status(404).json({ error: 'Prenda no encontrada o no tienes permisos' });
+    }
+
+    res.json({ message: 'Prenda eliminada correctamente' });
+  } catch (error) {
+    res.status(500).json({ error: 'Error al eliminar la prenda' });
+  }
+});
+
+// Registrar Uso Diario
+app.post('/prendas/:id/usar', authenticateToken, async (req: any, res: any) => {
+  const { id } = req.params;
+  
+  try {
+    const nuevoUso = await prisma.historial_prenda.create({
+      data: { prenda_id: Number(id) }
+    });
+    res.status(201).json(nuevoUso);
+  } catch (error) {
+    res.status(500).json({ error: 'Error al registrar el uso de la prenda' });
   }
 });
 
