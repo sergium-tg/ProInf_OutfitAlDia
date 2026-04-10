@@ -1,30 +1,35 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useEffect } from 'react';
 import { 
   IonPage, IonHeader, IonToolbar, IonTitle, IonContent, IonFab, 
   IonFabButton, IonIcon, IonGrid, IonRow, IonCol, IonCard, IonImg, 
-  IonButton, IonAlert, IonActionSheet, useIonViewWillEnter 
+  IonButton, IonAlert, IonActionSheet, IonSelect, IonSelectOption, 
+  IonInput, IonItem, IonLabel, useIonViewWillEnter, IonButtons
 } from '@ionic/react';
-import { add } from 'ionicons/icons';
+import { add, home } from 'ionicons/icons';
 import { useHistory } from 'react-router-dom';
 import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
 
 const PrendasManager: React.FC = () => {
   const history = useHistory();
-  
-  // Extraemos el usuario y el token de seguridad
   const { user, token } = useContext(AuthContext); 
   
   const [prendas, setPrendas] = useState<any[]>([]);
   const [selectedPrenda, setSelectedPrenda] = useState<any>(null);
   const [showActionSheet, setShowActionSheet] = useState(false);
   const [showAlert, setShowAlert] = useState<{isOpen: boolean, header: string, message: string, handler?: () => void}>({isOpen: false, header: '', message: ''});
+  
+  const [filtroCategoria, setFiltroCategoria] = useState('');
+  const [filtroColor, setFiltroColor] = useState('');
 
-  // Función para obtener las prendas desde tu backend en PostgreSQL
   const fetchPrendas = async () => {
     if (!token) return;
     try {
-      const response = await axios.get('http://localhost:3000/prendas', {
+      const params = new URLSearchParams();
+      if (filtroCategoria) params.append('categoria', filtroCategoria);
+      if (filtroColor) params.append('color', filtroColor);
+
+      const response = await axios.get(`http://localhost:3000/prendas?${params.toString()}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setPrendas(response.data);
@@ -33,110 +38,118 @@ const PrendasManager: React.FC = () => {
     }
   };
 
-  // useIonViewWillEnter es de Ionic: se ejecuta CADA VEZ que entras a esta pantalla.
-  // Así, cuando guardas una prenda y "vuelves atrás", la lista se actualiza sola.
-  useIonViewWillEnter(() => {
-    fetchPrendas();
-  });
+  useIonViewWillEnter(() => { fetchPrendas(); });
+  useEffect(() => { fetchPrendas(); }, [filtroCategoria, filtroColor]);
+
+  const navigateTo = (path: string) => {
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+    history.push(path);
+  };
 
   const handlePrendaClick = (prenda: any) => {
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
     setSelectedPrenda(prenda);
     setShowActionSheet(true);
   };
 
-  const handleUsarPrenda = async () => {
+  const handleUsarPrenda = async (confirmar = false) => {
     if (!selectedPrenda || !user) return;
-    
-    // HU-15: Validar repetición
-    const diasNoRep = user.dias_no_rep || 7;
-    
-    // Verificamos si existe historial de uso previo
-    const lastUsed = selectedPrenda.historial?.[0]?.fecha_uso; 
-    
-    if (lastUsed) {
-      const diffTime = Math.abs(new Date().getTime() - new Date(lastUsed).getTime());
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
-      
-      if (diffDays < diasNoRep) {
-        setShowAlert({
-          isOpen: true,
-          header: 'Aviso de Repetición',
-          message: `Usaste esta prenda hace ${diffDays} días (límite: ${diasNoRep} días). ¿Seguro que quieres usarla hoy?`,
-          handler: () => registrarUso() 
-        });
-        return;
-      }
-    }
-    registrarUso();
-  };
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
 
-  const registrarUso = async () => {
     try {
-      // HU-13: Mandamos el registro de uso al backend
-      await axios.post(`http://localhost:3000/prendas/${selectedPrenda.id}/usar`, {}, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await axios.post(`http://localhost:3000/prendas/${selectedPrenda.id}/usar`, 
+        { confirmar }, { headers: { Authorization: `Bearer ${token}` } }
+      );
       
-      // Cerramos el menú y volvemos a cargar la lista para actualizar el historial
       setShowActionSheet(false);
       fetchPrendas();
-      
       alert("¡Genial! Has registrado el uso de esta prenda.");
-    } catch (error) {
-      console.error("Error al registrar uso:", error);
+
+    } catch (error: any) {
+      if (error.response && error.response.status === 409 && error.response.data.alerta) {
+        setShowActionSheet(false); 
+        setTimeout(() => {
+          setShowAlert({
+            isOpen: true,
+            header: 'Aviso de Repetición',
+            message: error.response.data.mensaje,
+            handler: () => handleUsarPrenda(true) 
+          });
+        }, 150);
+      }
     }
   };
 
-  const verPrendasOlvidadas = () => {
-    // HU-14: Filtramos localmente las prendas sin uso en los últimos 'dias_olvido'
-    const diasOlvido = user?.dias_olvido || 30;
-    const fechaLimite = new Date();
-    fechaLimite.setDate(fechaLimite.getDate() - diasOlvido);
-
-    const olvidadas = prendas.filter(prenda => {
-      // Si nunca se ha usado
-      if (!prenda.historial || prenda.historial.length === 0) return true;
-      // Si su último uso es más viejo que la fecha límite
-      const ultimoUso = new Date(prenda.historial[0].fecha_uso);
-      return ultimoUso < fechaLimite;
-    });
-
-    if (olvidadas.length === 0) {
-      alert("¡Felicidades! No tienes prendas olvidadas (todas se han usado recientemente).");
-    } else {
-      // Solo mostramos las olvidadas en la cuadrícula
-      setPrendas(olvidadas);
+  const handleDeshacerUso = async () => {
+    if (!selectedPrenda) return;
+    try {
+      await axios.delete(`http://localhost:3000/prendas/${selectedPrenda.id}/usar`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setShowActionSheet(false);
+      fetchPrendas();
+      alert("Marca de uso eliminada correctamente.");
+    } catch (error) {
+      alert("No se pudo eliminar el uso de hoy.");
     }
+  };
+
+  const seUsoHoy = () => {
+    if (!selectedPrenda || !selectedPrenda.historial || selectedPrenda.historial.length === 0) return false;
+    const fechaUltimoUso = new Date(selectedPrenda.historial[0].fecha_uso);
+    return fechaUltimoUso.toDateString() === new Date().toDateString();
   };
 
   return (
     <IonPage>
       <IonHeader>
-        <IonToolbar>
+        <IonToolbar color="primary">
+          <IonButtons slot="start">
+            <IonButton onClick={() => navigateTo('/home')}><IonIcon icon={home} /></IonButton>
+          </IonButtons>
           <IonTitle>Mi Armario</IonTitle>
         </IonToolbar>
       </IonHeader>
-      <IonContent className="ion-padding">
-        
-        <IonButton expand="block" color="warning" onClick={verPrendasOlvidadas} className="ion-margin-bottom">
+      
+      <IonContent className="ion-padding" color="light">
+        <IonButton expand="block" color="warning" onClick={() => navigateTo('/prendas/olvidadas')} className="ion-margin-bottom">
           Ver Prendas Olvidadas
         </IonButton>
 
+        <IonGrid style={{ backgroundColor: 'white', borderRadius: '10px', marginBottom: '15px', padding: '5px' }}>
+          <IonRow>
+            <IonCol size="6">
+              <IonItem lines="none">
+                <IonLabel position="stacked">Categoría</IonLabel>
+                <IonSelect value={filtroCategoria} placeholder="Todas" onIonChange={e => setFiltroCategoria(e.detail.value)}>
+                  <IonSelectOption value="">Todas</IonSelectOption>
+                  <IonSelectOption value="Saco">Saco</IonSelectOption>
+                  <IonSelectOption value="Camisa">Camisa</IonSelectOption>
+                  <IonSelectOption value="Pantalon">Pantalón</IonSelectOption>
+                  <IonSelectOption value="Calzado">Calzado</IonSelectOption>
+                </IonSelect>
+              </IonItem>
+            </IonCol>
+            <IonCol size="6">
+              <IonItem lines="none" style={{ borderLeft: '1px solid #eee' }}>
+                <IonLabel position="stacked">Color</IonLabel>
+                <IonInput value={filtroColor} placeholder="Ej. Rojo" onIonChange={e => setFiltroColor(e.detail.value!)} clearInput />
+              </IonItem>
+            </IonCol>
+          </IonRow>
+        </IonGrid>
+
         {prendas.length === 0 ? (
-          <p style={{ textAlign: 'center', marginTop: '2rem' }}>
-            No hay prendas para mostrar. ¡Agrega tu primera prenda!
-          </p>
+          <div style={{ textAlign: 'center', marginTop: '3rem', color: '#666' }}>
+            <p>No se encontraron prendas con estos filtros.</p>
+          </div>
         ) : (
           <IonGrid>
             <IonRow>
               {prendas.map((prenda) => (
                 <IonCol size="6" key={prenda.id}>
-                  <IonCard onClick={() => handlePrendaClick(prenda)}>
-                    {/* Estilo para que todas las imágenes mantengan proporción de cuadrado */}
-                    <IonImg 
-                      src={prenda.foto_url} 
-                      style={{ objectFit: 'cover', height: '150px', width: '100%' }} 
-                    />
+                  <IonCard onClick={() => handlePrendaClick(prenda)} style={{ margin: '5px', borderRadius: '15px', boxShadow: '0 4px 8px rgba(0,0,0,0.1)', cursor: 'pointer' }}>
+                    <IonImg src={prenda.foto_url} style={{ objectFit: 'contain', height: '150px', width: '100%', backgroundColor: '#fff', padding: '10px' }} />
                   </IonCard>
                 </IonCol>
               ))}
@@ -145,9 +158,7 @@ const PrendasManager: React.FC = () => {
         )}
 
         <IonFab vertical="bottom" horizontal="end" slot="fixed">
-          <IonFabButton onClick={() => history.push('/prenda/nueva')}>
-            <IonIcon icon={add} />
-          </IonFabButton>
+          <IonFabButton onClick={() => navigateTo('/prenda/nueva')}><IonIcon icon={add} /></IonFabButton>
         </IonFab>
 
         <IonActionSheet
@@ -155,26 +166,14 @@ const PrendasManager: React.FC = () => {
           onDidDismiss={() => setShowActionSheet(false)}
           header="Opciones de Prenda"
           buttons={[
-            { text: 'Sí, la voy a usar', handler: handleUsarPrenda },
-            { text: 'Gestionar prenda', handler: () => {
-                setShowActionSheet(false);
-                history.push(`/prenda/editar/${selectedPrenda?.id}`);
-              }
-            },
+            { text: 'Sí, la voy a usar', handler: () => handleUsarPrenda(false) },
+            ...(seUsoHoy() ? [{ text: 'Deshacer uso de hoy', role: 'destructive', handler: handleDeshacerUso }] : []),
+            { text: 'Gestionar prenda', handler: () => { setShowActionSheet(false); navigateTo(`/prenda/editar/${selectedPrenda?.id}`); } },
             { text: 'Cancelar', role: 'cancel' }
           ]}
         />
 
-        <IonAlert
-          isOpen={showAlert.isOpen}
-          onDidDismiss={() => setShowAlert({ ...showAlert, isOpen: false })}
-          header={showAlert.header}
-          message={showAlert.message}
-          buttons={[
-            { text: 'Cancelar', role: 'cancel' },
-            { text: 'Continuar y usar', handler: showAlert.handler }
-          ]}
-        />
+        <IonAlert isOpen={showAlert.isOpen} onDidDismiss={() => setShowAlert({ ...showAlert, isOpen: false })} header={showAlert.header} message={showAlert.message} buttons={[{ text: 'Cancelar', role: 'cancel' }, { text: 'Continuar y usar', handler: showAlert.handler }]} />
       </IonContent>
     </IonPage>
   );

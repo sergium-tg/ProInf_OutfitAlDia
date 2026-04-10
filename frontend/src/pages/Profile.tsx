@@ -1,8 +1,9 @@
 import React, { useContext, useState, useEffect } from 'react';
 import { 
   IonContent, IonHeader, IonPage, IonTitle, IonToolbar, IonItem, 
-  IonLabel, IonInput, IonButton, IonAlert, IonText, IonLoading, useIonToast 
+  IonLabel, IonInput, IonButton, IonAlert, IonText, IonLoading, useIonToast, IonButtons, IonIcon 
 } from '@ionic/react';
+import { home } from 'ionicons/icons';
 import { AuthContext } from '../context/AuthContext';
 import { useHistory } from 'react-router-dom';
 import axios from 'axios';
@@ -13,8 +14,6 @@ const Profile: React.FC = () => {
   const [present] = useIonToast();
   
   const [nuevoNombre, setNuevoNombre] = useState(user?.nombre_usuario || '');
-  
-  // Agregamos los estados para los nuevos campos, inicializados con los datos de context o los defaults
   const [diasNoRep, setDiasNoRep] = useState(user?.dias_no_rep?.toString() || '7');
   const [diasOlvido, setDiasOlvido] = useState(user?.dias_olvido?.toString() || '30');
 
@@ -24,7 +23,6 @@ const Profile: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
 
-  // Sincronizar estados si el context cambia al recargar
   useEffect(() => {
     if (user) {
       setNuevoNombre(user.nombre_usuario || '');
@@ -40,43 +38,30 @@ const Profile: React.FC = () => {
   const handleLogout = () => {
     clearSession();
     history.push('/login');
-    present({
-      message: 'Sesión cerrada correctamente. ¡Vuelve pronto!',
-      duration: 2000,
-      position: 'bottom',
-      color: 'dark'
-    });
+    present({ message: 'Sesión cerrada correctamente. ¡Vuelve pronto!', duration: 2000, position: 'bottom', color: 'dark' });
   };
 
-  const handleSaveProfile = async () => {
+  // CORRECCIÓN: Recibimos el evento del formulario
+  const handleSaveProfile = async (e: React.FormEvent) => {
+    e.preventDefault(); // Evitamos que la página se recargue sola
     setError(null);
     if (nuevaPassword && nuevaPassword !== confirmNuevaPassword) {
       setError('Las nuevas contraseñas no coinciden.');
       return;
     }
-
     setLoading(true);
     try {
-      // Construimos el payload de manera dinámica
-      const payload: any = { 
-        nombre_usuario: nuevoNombre
-      };
-      
-      // Solo los enviamos si no están vacíos
+      const payload: any = { nombre_usuario: nuevoNombre };
       if (diasNoRep !== '') payload.dias_no_rep = Number(diasNoRep);
       if (diasOlvido !== '') payload.dias_olvido = Number(diasOlvido);
       if (nuevaPassword) payload.password = nuevaPassword;
 
-      const response = await axios.patch('http://localhost:3000/user/profile', 
-        payload,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      
-      // La respuesta ahora trae todos los campos actualizados
+      const response = await axios.patch('http://localhost:3000/user/profile', payload, { headers: { Authorization: `Bearer ${token}` } });
       setSession(token!, response.data.user);
       setNuevaPassword('');
       setConfirmNuevaPassword('');
       present({ message: 'Perfil actualizado con éxito', duration: 2000, color: 'success' });
+      history.push('/home'); 
     } catch (err: any) {
       setError(err.response?.data?.error || 'Error al actualizar.');
     } finally {
@@ -86,9 +71,7 @@ const Profile: React.FC = () => {
 
   const handleDeleteAccount = async () => {
     try {
-      await axios.delete('http://localhost:3000/user/account', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await axios.delete('http://localhost:3000/user/account', { headers: { Authorization: `Bearer ${token}` } });
       clearSession();
       history.push('/register');
       present({ message: 'Cuenta eliminada permanentemente', duration: 3000, color: 'danger' });
@@ -101,67 +84,61 @@ const Profile: React.FC = () => {
     <IonPage>
       <IonHeader>
         <IonToolbar color="primary">
+          <IonButtons slot="start">
+            <IonButton onClick={() => history.push('/home')}>
+              <IonIcon icon={home} />
+            </IonButton>
+          </IonButtons>
           <IonTitle>Mi Perfil</IonTitle>
         </IonToolbar>
       </IonHeader>
       <IonContent className="ion-padding">
         <h3>Gestionar mi cuenta</h3>
         
-        <IonItem>
-          <IonLabel position="stacked">Email (No editable)</IonLabel>
-          <IonInput value={user.email} readonly disabled />
-        </IonItem>
-        
-        <IonItem className="ion-margin-top">
-          <IonLabel position="stacked">Nombre de Usuario</IonLabel>
-          <IonInput value={nuevoNombre} onIonChange={e => setNuevoNombre(e.detail.value!)} />
-        </IonItem>
+        {/* CORRECCIÓN: Envolvemos los inputs en un <form> */}
+        <form onSubmit={handleSaveProfile}>
+          <IonItem>
+            <IonLabel position="stacked">Email (No editable)</IonLabel>
+            <IonInput value={user.email} readonly disabled />
+          </IonItem>
 
-        <IonItem className="ion-margin-top">
-          <IonLabel position="stacked">Días sin repetir outfit</IonLabel>
-          <IonInput type="number" min="0" value={diasNoRep} onIonChange={e => setDiasNoRep(e.detail.value!)} />
-        </IonItem>
+          {/* CORRECCIÓN: Usamos onIonInput en vez de onIonChange para tiempo real */}
+          <IonItem className="ion-margin-top">
+            <IonLabel position="stacked">Nombre de Usuario</IonLabel>
+            <IonInput value={nuevoNombre} onIonInput={e => setNuevoNombre(e.detail.value!)} />
+          </IonItem>
+          <IonItem className="ion-margin-top">
+            <IonLabel position="stacked">Días sin repetir outfit</IonLabel>
+            <IonInput type="number" min="0" value={diasNoRep} onIonInput={e => setDiasNoRep(e.detail.value!)} />
+          </IonItem>
+          <IonItem className="ion-margin-top">
+            <IonLabel position="stacked">Días para olvido de prenda</IonLabel>
+            <IonInput type="number" min="0" value={diasOlvido} onIonInput={e => setDiasOlvido(e.detail.value!)} />
+          </IonItem>
+          <IonItem className="ion-margin-top">
+            <IonLabel position="stacked">Cambiar Contraseña</IonLabel>
+            <IonInput type="password" value={nuevaPassword} onIonInput={e => setNuevaPassword(e.detail.value!)} placeholder="Nueva contraseña" />
+          </IonItem>
+          <IonItem>
+            <IonLabel position="stacked">Confirmar Contraseña</IonLabel>
+            <IonInput type="password" value={confirmNuevaPassword} onIonInput={e => setConfirmNuevaPassword(e.detail.value!)} disabled={!nuevaPassword} />
+          </IonItem>
 
-        <IonItem className="ion-margin-top">
-          <IonLabel position="stacked">Días para olvido de prenda</IonLabel>
-          <IonInput type="number" min="0" value={diasOlvido} onIonChange={e => setDiasOlvido(e.detail.value!)} />
-        </IonItem>
+          {error && <IonText color="danger"><p>{error}</p></IonText>}
 
-        <IonItem className="ion-margin-top">
-          <IonLabel position="stacked">Cambiar Contraseña</IonLabel>
-          <IonInput type="password" value={nuevaPassword} onIonChange={e => setNuevaPassword(e.detail.value!)} placeholder="Nueva contraseña" />
-        </IonItem>
+          {/* CORRECCIÓN: type="submit" */}
+          <IonButton type="submit" expand="block" className="ion-margin-top">
+            Guardar Cambios
+          </IonButton>
+        </form>
 
-        <IonItem>
-          <IonLabel position="stacked">Confirmar Contraseña</IonLabel>
-          <IonInput type="password" value={confirmNuevaPassword} onIonChange={e => setConfirmNuevaPassword(e.detail.value!)} disabled={!nuevaPassword} />
-        </IonItem>
-
-        {error && <IonText color="danger"><p>{error}</p></IonText>}
-
-        <IonButton expand="block" onClick={handleSaveProfile} className="ion-margin-top">
-          Guardar Cambios
-        </IonButton>
-
-        <IonButton expand="block" color="medium" fill="outline" onClick={handleLogout} className="ion-margin-top">
-          Cerrar Sesión
-        </IonButton>
-
-        <IonButton expand="block" color="danger" fill="clear" onClick={() => setShowConfirmDelete(true)} className="ion-margin-top">
-          Eliminar mi cuenta
-        </IonButton>
+        {/* CORRECCIÓN: type="button" para que no activen el formulario por error */}
+        <IonButton type="button" expand="block" color="medium" fill="outline" onClick={() => history.push('/home')} className="ion-margin-top">Cancelar</IonButton>
+        <IonButton type="button" expand="block" color="danger" fill="clear" onClick={handleLogout} className="ion-margin-top">Cerrar Sesión</IonButton>
+        <IonButton type="button" expand="block" color="danger" fill="clear" onClick={() => setShowConfirmDelete(true)} className="ion-margin-top" style={{fontSize:'0.8rem'}}>Eliminar mi cuenta permanentemente</IonButton>
 
         <IonLoading isOpen={loading} message="Actualizando..." />
-        <IonAlert
-          isOpen={showConfirmDelete}
-          onDidDismiss={() => setShowConfirmDelete(false)}
-          header="¿Eliminar cuenta?"
-          message="Esta acción borrará permanentemente tus datos."
-          buttons={[
-            { text: 'Cancelar', role: 'cancel' },
-            { text: 'Eliminar', handler: handleDeleteAccount, cssClass: 'alert-button-confirm' }
-          ]}
-        />
+        <IonAlert isOpen={showConfirmDelete} onDidDismiss={() => setShowConfirmDelete(false)} header="¿Eliminar cuenta?" message="Esta acción borrará permanentemente tus datos." buttons={[{ text: 'Cancelar', role: 'cancel' }, { text: 'Eliminar', handler: handleDeleteAccount }]} />
       </IonContent>
     </IonPage>
   );
