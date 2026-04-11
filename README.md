@@ -1,10 +1,8 @@
 # Outfit Al Día
-
 Es un aplicativo diseñado para la gestión inteligente del armario y ropa, permitiendo a las usuarias registrar, organizar y planificar sus outfits diarios.
 
 ## Arquitectura y Stack Tecnológico
-
-Este proyecto utiliza una arquitectura cliente-servidor estructurada en un monorepo:
+Este proyecto utiliza una arquitectura cliente-servidor estructurada en un monorepo
 
 ### Frontend (Presentación)
 * **Framework:** React con Ionic (TypeScript)
@@ -17,26 +15,26 @@ Este proyecto utiliza una arquitectura cliente-servidor estructurada en un monor
 
 ### Base de Datos y Almacenamiento
 * **Motor:** PostgreSQL (Alojado en Neon.tech)
-* **Imágenes:** Cloudinary (Próximamente para la gestión de fotos de prendas)
+* **Imágenes:** Cloudinary
 
 ## Estructura del Proyecto
-
 El repositorio está dividido en dos directorios principales:
+
 * `/backend`: Contiene la API REST, la lógica de negocio y la configuración de Prisma.
 * `/frontend`: Contiene la interfaz de usuario desarrollada con Ionic/React.
 
 ## Cómo ejecutar el proyecto localmente
 
 ### 1. Clonar el repositorio
-\`\`\`bash
+```bash
 git clone https://github.com/sergium-tg/ProInf_OutfitAlDia.git
 cd ProInf_OutfitAlDia
-\`\`\`
+```
 
 ### 2. Configurar el Backend
 1. Navegar a la carpeta del servidor: `cd backend`
 2. Instalar las dependencias: `npm install`
-3. Crea un archivo `.env` en la raíz de `/backend` y agrega la URL de conexión a tu base de datos:
+3. Crea un archivo `.env` en la raíz de `/backend` y agrega la URL de conexión a tu base de datos (el enlace es a modo de ejemplo):
    \`DATABASE_URL="postgresql://usuario:password@servidor.neon.tech/neondb?sslmode=require"\`
 4. Generar el cliente de Prisma: `npx prisma generate`
 5. Sincronizar la base de datos: `npx prisma db push`
