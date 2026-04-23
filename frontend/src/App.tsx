@@ -3,6 +3,7 @@ import {
   IonApp, IonRouterOutlet, setupIonicReact 
 } from '@ionic/react';
 import { IonReactRouter } from '@ionic/react-router';
+import OutfitsManager from './pages/OutfitsManager';
 
 /* Core CSS */
 import '@ionic/react/css/core.css';
@@ -65,6 +66,7 @@ const App: React.FC = () => (
           <PrivateRoute exact path="/prendas/olvidadas" component={PrendasOlvidadas} />
           <PrivateRoute exact path="/prenda/nueva" component={PrendaForm} />
           <PrivateRoute exact path="/prenda/editar/:id" component={PrendaForm} />
+          <PrivateRoute exact path="/outfits" component={OutfitsManager} />          
 
           {/* Redirección por defecto */}
           <Route exact path="/">

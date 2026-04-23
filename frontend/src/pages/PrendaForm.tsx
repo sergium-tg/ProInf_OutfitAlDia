@@ -187,17 +187,17 @@ const PrendaForm: React.FC = () => {
           </IonItem>
 
           <IonItem className="ion-margin-top" lines="full">
-            <IonLabel position="floating">Color *</IonLabel>
+            <IonLabel position="stacked">Color *</IonLabel>
             <IonInput value={formData.color} placeholder="Ej. Azul marino" onIonInput={e => setFormData({...formData, color: e.detail.value!})} />
           </IonItem>
           
           <IonItem className="ion-margin-top" lines="full">
-            <IonLabel position="floating">Estilo</IonLabel>
+            <IonLabel position="stacked">Estilo</IonLabel>
             <IonInput value={formData.estilo} placeholder="Ej. Casual" onIonInput={e => setFormData({...formData, estilo: e.detail.value!})} />
           </IonItem>
           
           <IonItem className="ion-margin-top" lines="full">
-            <IonLabel position="floating">Ocasión</IonLabel>
+            <IonLabel position="stacked">Ocasión</IonLabel>
             <IonInput value={formData.ocasion} placeholder="Ej. Trabajo" onIonInput={e => setFormData({...formData, ocasion: e.detail.value!})} />
           </IonItem>
 

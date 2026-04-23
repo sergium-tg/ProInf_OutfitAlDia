@@ -261,5 +261,74 @@ app.delete('/prendas/:id/usar', authenticateToken, async (req: any, res: any) =>
   }
 });
 
+// HU-16: Crear Outfit
+app.post('/outfits', authenticateToken, async (req: any, res: any) => {
+  const { nombre, prendaIds } = req.body;
+  if (!nombre || !prendaIds || prendaIds.length < 2) {
+    return res.status(400).json({ error: 'Se requieren mínimo 2 prendas y un nombre.' });
+  }
+
+  try {
+    const nuevoOutfit = await prisma.outfit.create({
+      data: {
+        nombre,
+        usuarioId: req.user.id,
+        prendas: {
+          create: prendaIds.map((id: number) => ({
+            prenda: { connect: { id } }
+          }))
+        }
+      }
+    });
+    res.status(201).json(nuevoOutfit);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Error al guardar el outfit.' });
+  }
+});
+
+// HU-18: Consultar Outfits
+app.get('/outfits', authenticateToken, async (req: any, res: any) => {
+  try {
+    const outfits = await prisma.outfit.findMany({
+      where: { usuarioId: req.user.id },
+      include: {
+        prendas: { include: { prenda: true } }
+      },
+      orderBy: { nombre: 'asc' } // Cumple criterio de orden alfabético
+    });
+    res.json(outfits);
+  } catch (error) {
+    res.status(500).json({ error: 'Error al consultar outfits.' });
+  }
+});
+
+// HU-17: Guardar como Favorito
+app.patch('/outfits/:id/favorito', authenticateToken, async (req: any, res: any) => {
+  try {
+    const { favorito } = req.body;
+    await prisma.outfit.update({
+      where: { id: Number(req.params.id), usuarioId: req.user.id },
+      data: { favorito }
+    });
+    res.json({ message: 'Estado de favorito actualizado.' });
+  } catch (error) {
+    res.status(500).json({ error: 'Error al actualizar el outfit.' });
+  }
+});
+
+// Eliminar Outfit
+app.delete('/outfits/:id', authenticateToken, async (req: any, res: any) => {
+  try {
+    // Gracias al onDelete: Cascade del schema, esto borra el outfit y sus relaciones automáticamente
+    await prisma.outfit.delete({
+      where: { id: Number(req.params.id), usuarioId: req.user.id }
+    });
+    res.json({ message: 'Outfit eliminado correctamente.' });
+  } catch (error) {
+    res.status(500).json({ error: 'Error al eliminar el outfit.' });
+  }
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`🚀 Backend corriendo en el puerto ${PORT}`));
