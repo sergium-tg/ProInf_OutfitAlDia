@@ -1,4 +1,4 @@
-import React, { createContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useState, ReactNode } from 'react';
 
 // 1. Definimos la estructura de los datos que compartiremos
 interface AuthContextType {
@@ -9,7 +9,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
 }
 
-// 2. CREACIÓN DEL CONTEXTO (Importante: El 'export' aquí soluciona tu error)
+// 2. CREACIÓN DEL CONTEXTO
 export const AuthContext = createContext<AuthContextType>({
   token: null,
   user: null,
@@ -20,11 +20,26 @@ export const AuthContext = createContext<AuthContextType>({
 
 // 3. PROVEEDOR DEL CONTEXTO
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  // Inicializamos el estado intentando leer lo que haya en el almacenamiento local
+  // Estado para el token
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
+  
+  // Estado para el usuario con validación robusta (Solución al error de JSON)
   const [user, setUser] = useState<any | null>(() => {
     const savedUser = localStorage.getItem('user');
-    return savedUser ? JSON.parse(savedUser) : null;
+    
+    // Si no hay nada, o si por error se guardó la palabra "undefined", devolvemos null
+    if (!savedUser || savedUser === "undefined") {
+      return null;
+    }
+
+    try {
+      // Intentamos procesar el JSON
+      return JSON.parse(savedUser);
+    } catch (error) {
+      // Si el JSON está mal formado, limpiamos y devolvemos null para que no rompa la app
+      console.error("Error al leer el usuario del localStorage:", error);
+      return null;
+    }
   });
 
   // Función para guardar la sesión tras un login exitoso

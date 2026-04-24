@@ -49,6 +49,7 @@ const PublicRoute: React.FC<{ component: React.ComponentType<any>; path: string;
   );
 };
 
+
 const App: React.FC = () => (
   <IonApp>
     <AuthProvider>

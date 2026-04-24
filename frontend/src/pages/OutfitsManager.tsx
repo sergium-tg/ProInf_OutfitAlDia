@@ -51,24 +51,9 @@ const OutfitsManager: React.FC = () => {
   };
 
   const handleCrearOutfit = async () => {
+    // La única validación que dejamos en el front es estrictamente visual (para no hacer peticiones innecesarias)
     if (selectedPrendas.length < 2) {
       present({ message: 'Selecciona al menos 2 prendas para tu outfit', color: 'warning', duration: 2000 });
-      return;
-    }
-
-    const categorias = selectedPrendas.map(p => p.categoria);
-
-    if (categorias.includes('Calzado')) {
-      present({ message: 'Por el momento armar este outfit no es posible', color: 'danger', duration: 3000 });
-      return;
-    }
-
-    const countCamisas = categorias.filter(c => c === 'Camisa').length;
-    const countSacos = categorias.filter(c => c === 'Saco').length;
-    const countPantalones = categorias.filter(c => c === 'Pantalon' || c === 'Pantalón').length;
-
-    if (countCamisas > 1 || countSacos > 1 || countPantalones > 1) {
-      present({ message: 'Solo puedes elegir 1 camisa, 1 saco y 1 pantalón', color: 'warning', duration: 3000 });
       return;
     }
 
@@ -77,33 +62,26 @@ const OutfitsManager: React.FC = () => {
       return;
     }
 
-    // --- NUEVA LÓGICA: VALIDACIÓN DE OUTFITS DUPLICADOS ---
-    
-    // 1. Tomamos los IDs seleccionados, los ORDENAMOS de menor a mayor y los unimos en un texto (ej: "5,12")
-    const combinacionActual = selectedPrendas.map(p => p.id).sort().join(',');
-
-    // 2. Revisamos si alguno de los outfits ya guardados tiene exactamente esa misma combinación
-    const existeDuplicado = outfits.some(outfit => {
-      const combinacionGuardada = outfit.prendas.map((op: any) => op.prenda.id).sort().join(',');
-      return combinacionActual === combinacionGuardada;
-    });
-
-    if (existeDuplicado) {
-      present({ message: 'Ya tienes un outfit guardado con esta misma combinación exacta de ropa.', color: 'danger', duration: 3000 });
-      return;
-    }
-    // --------------------------------------------------------
-
     try {
-      await axios.post('http://localhost:3000/outfits', {
+      const response = await axios.post('http://localhost:3000/outfits', {
         nombre: nombreOutfit,
         prendaIds: selectedPrendas.map(p => p.id)
       }, { headers: { Authorization: `Bearer ${token}` } });
       
-      present({ message: 'Outfit guardado con éxito', color: 'success', duration: 2000 });
-      setNombreOutfit(''); setSelectedPrendas([]); fetchOutfits(); setView('galeria');
-    } catch (e) {
-      present({ message: 'Error al guardar outfit', color: 'danger', duration: 2000 });
+      present({ message: response.data.message || 'Outfit guardado con éxito', color: 'success', duration: 2000 });
+      
+      // Limpiar estados y regresar a la galería
+      setNombreOutfit('');
+      setSelectedPrendas([]);
+      setView('galeria');
+      fetchOutfits(); 
+
+    } catch (error: any) {
+      // Capturamos el error y el color sugerido que nos envía el backend
+      const errorMsg = error.response?.data?.error || 'Ocurrió un error al guardar el outfit';
+      const colorAlerta = error.response?.data?.color || 'warning';
+      
+      present({ message: errorMsg, color: colorAlerta, duration: 3000 });
     }
   };
 

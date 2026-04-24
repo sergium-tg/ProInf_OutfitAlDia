@@ -8,6 +8,7 @@ import { useParams, useHistory } from 'react-router-dom';
 import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera'; 
+import { useIonToast } from '@ionic/react';
 
 const PrendaForm: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -15,6 +16,8 @@ const PrendaForm: React.FC = () => {
   const isEditing = !!id;
   
   const { user, token } = useContext(AuthContext);
+
+  const [present] = useIonToast();
 
   const [formData, setFormData] = useState({ 
     categoria: '', color: '', estilo: '', ocasion: '', conceptual: false, comprar: false 
@@ -89,49 +92,73 @@ const PrendaForm: React.FC = () => {
   const handleUploadAndSave = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     
+    // Dejamos una validación mínima en el front para no gastar ancho de banda en Cloudinary si falta algo básico
     if (!formData.categoria || !formData.color) {
-      setValidationMessage("Por favor, selecciona una categoría y escribe un color. Son obligatorios.");
+      setValidationMessage("Por favor, selecciona una categoría y escribe un color.");
       setShowValidationAlert(true); 
       return;
     }
-    if (!isEditing && !imageFile) {
-      setValidationMessage("Es obligatorio adjuntar una foto de la prenda para poder registrarla.");
-      setShowValidationAlert(true); 
-      return; 
-    }
 
-    let foto_url = fotoActual; 
+    let urlFinal = fotoActual; // Usamos tu variable fotoActual
 
     try {
-      if (imageFile) {
+      // 1. Subida a Cloudinary si hay un archivo nuevo
+      if (imageFile) { // Usamos tu variable imageFile
         const formUpload = new FormData();
         formUpload.append('file', imageFile);
         formUpload.append('upload_preset', UPLOAD_PRESET);
         const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, { method: 'POST', body: formUpload });
         const data = await res.json();
-        foto_url = data.secure_url;
+        urlFinal = data.secure_url;
       }
 
-      const payload = { ...formData, foto_url, usuario_id: user?.id };
+      // 2. Preparamos el payload con tus nombres de variables
+      const payload = { 
+        ...formData, 
+        foto_url: urlFinal, 
+        usuario_id: user?.id 
+      };
+      
       const config = { headers: { Authorization: `Bearer ${token}` } };
 
-      if (isEditing) await axios.put(`http://localhost:3000/prendas/${id}`, payload, config);
-      else await axios.post('http://localhost:3000/prendas', payload, config);
+      // 3. Petición al backend
+      let response;
+      if (isEditing) {
+        response = await axios.put(`http://localhost:3000/prendas/${id}`, payload, config);
+      } else {
+        response = await axios.post('http://localhost:3000/prendas', payload, config);
+      }
 
-      history.goBack();
-    } catch (error) {
-      console.error("Error al guardar:", error);
-      setValidationMessage("Ocurrió un error al guardar la prenda en el servidor.");
+      // 4. Éxito: Usamos los mensajes que vienen del backend
+      present({ 
+        message: response.data.message || 'Operación exitosa', 
+        color: 'success', 
+        duration: 2000 
+      });
+      
+      history.goBack(); // Usamos tu objeto history para navegar
+
+    } catch (error: any) {
+      // 5. Manejo de errores: Capturamos el mensaje y color enviado por el backend
+      const msg = error.response?.data?.error || 'Error al conectar con el servidor';
+      const col = error.response?.data?.color || 'danger';
+      
+      setValidationMessage(msg);
       setShowValidationAlert(true);
     }
   };
 
   const handleDelete = async () => {
     try {
-      await axios.delete(`http://localhost:3000/prendas/${id}`, { headers: { Authorization: `Bearer ${token}` } });
-      history.goBack();
-    } catch (error) {
-      setValidationMessage("No se pudo eliminar la prenda."); setShowValidationAlert(true);
+      await axios.delete(`http://localhost:3000/prendas/${id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      present({ message: 'Prenda eliminada con éxito', color: 'success', duration: 2000 });
+      history.replace('/prendas');
+    } catch (err: any) {
+      // Capturamos el mensaje de "La prenda no se puede eliminar..." del backend
+      const msg = err.response?.data?.error || 'No se pudo eliminar la prenda.';
+      present({ message: msg, duration: 3500, color: 'danger' });
     }
   };
 

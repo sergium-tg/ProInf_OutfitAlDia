@@ -1,0 +1,26 @@
+# Dependencias (NUNCA subirlas)
+node_modules/
+
+# Archivos de construcción/compilación
+dist/
+build/
+www/
+out/
+
+# Variables de entorno (Sensible)
+.env
+.env.local
+.env.development.local
+
+# Logs y errores
+npm-debug.log*
+yarn-error.log*
+
+# Archivos del Sistema Operativo
+.DS_Store
+Thumbs.db
+
+# Configuración de IDEs
+.vscode/
+.idea/
+*.swp
