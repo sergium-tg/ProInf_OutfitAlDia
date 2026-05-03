@@ -2,7 +2,7 @@ name: Pipeline CI/CD - Outfit Al Día
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "**" ]
   pull_request:
     branches: [ "main" ]
 
