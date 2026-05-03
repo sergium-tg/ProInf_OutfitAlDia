@@ -1,5 +1,8 @@
 name: Pipeline CI/CD PROINF OUTFITDIA
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 on:
   push:
     branches: [ 'feature/*', 'main' ]
@@ -10,16 +13,17 @@ jobs:
   integracion-continua:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout del código
+        uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Configurar Node.js 24
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
           cache: 'npm'
           cache-dependency-path: './backend/package-lock.json'
 
-      - name: Instalar Dependencias
+      - name: Instalar Dependencias Backend
         working-directory: ./backend
         run: npm ci
 
@@ -27,9 +31,16 @@ jobs:
         working-directory: ./backend
         run: npx prisma generate
         env:
-          DATABASE_URL: "postgresql://usuario:password@localhost:5432/basededatos_falsa?schema=public"
+          DATABASE_URL: "postgresql://usuario:password@localhost:5432/db_pruebas?schema=public"
 
-      - name: Ejecutar Pruebas Unitarias
+      - name: Ejecutar Pruebas Unitarias (Cobertura 70%)
         working-directory: ./backend
         run: npm test
 
+  despliegue-continuo:
+    runs-on: ubuntu-latest
+    needs: integracion-continua
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - name: Check de despliegue
+        run: echo "El pipeline pasó las pruebas. Listo para desplegar a producción."
