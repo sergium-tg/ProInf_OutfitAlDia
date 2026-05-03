@@ -1,46 +1,53 @@
-name: Pipeline CI/CD PROINF OUTFITDIA
-
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+name: Pipeline CI/CD - Outfit Al Día
 
 on:
   push:
-    branches: [ 'feature/*', 'main' ]
+    branches: [ "main" ]
   pull_request:
-    branches: [ 'develop', 'main' ]
+    branches: [ "main" ]
 
 jobs:
   integracion-continua:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout del código
+      - name: Descargar código del repositorio
         uses: actions/checkout@v4
 
-      - name: Configurar Node.js 24
+      - name: Configurar entorno Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '24'
-          cache: 'npm'
-          cache-dependency-path: './backend/package-lock.json'
+          node-version: '24' 
 
-      - name: Instalar Dependencias Backend
+      - name: Instalar dependencias del Backend
         working-directory: ./backend
-        run: npm ci
+        run: npm install
 
       - name: Generar Prisma Client
         working-directory: ./backend
         run: npx prisma generate
-        env:
-          DATABASE_URL: "postgresql://usuario:password@localhost:5432/db_pruebas?schema=public"
 
-      - name: Ejecutar Pruebas Unitarias (Cobertura 70%)
+      - name: Validar Backend - Pruebas y Cobertura (Mínimo 70%)
         working-directory: ./backend
-        run: npm test
+        run: npm test -- --coverage --coverageThreshold="{\"global\":{\"statements\":70}}"
+        env:
+          DATABASE_URL: "postgresql://usuario_falso:password_falso@localhost:5432/bd_falsa"
+
+      - name: Instalar dependencias del Frontend
+        working-directory: ./frontend
+        run: npm install
+
+      - name: Validar Frontend - Pruebas y Cobertura (Mínimo 70%)
+        working-directory: ./frontend
+        run: npm run test.unit -- --coverage --run --coverage.threshold.statements=70
 
   despliegue-continuo:
     runs-on: ubuntu-latest
-    needs: integracion-continua
+    needs: integracion-continua 
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     steps:
-      - name: Check de despliegue
-        run: echo "El pipeline pasó las pruebas. Listo para desplegar a producción."
+      - name: Descargar código del repositorio
+        uses: actions/checkout@v4
+        
+      - name: Ejecutar Despliegue
+        run: echo "El código tiene la calidad requerida. Procediendo con el despliegue..."
