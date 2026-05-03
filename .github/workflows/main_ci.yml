@@ -35,7 +35,7 @@ jobs:
         
       - name: Validar Frontend - Pruebas y Cobertura (Mínimo 70%)
         working-directory: ./frontend
-        run: npx vitest --coverage.enabled=true --run --coverage.thresholds.statements=70
+        run: npm run test.unit -- --coverage.enabled --run --coverage.threshold.statements=70
         env:
           DATABASE_URL: "postgresql://usuario_falso:password_falso@localhost:5432/bd_falsa"
 
