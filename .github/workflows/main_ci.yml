@@ -26,7 +26,10 @@ jobs:
       - name: Generar Prisma Client
         working-directory: ./backend
         run: npx prisma generate
+        env:
+          DATABASE_URL: "postgresql://usuario:password@localhost:5432/basededatos_falsa?schema=public"
 
       - name: Ejecutar Pruebas Unitarias
         working-directory: ./backend
         run: npm test
+
