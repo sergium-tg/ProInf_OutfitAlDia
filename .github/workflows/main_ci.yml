@@ -26,6 +26,8 @@ jobs:
       - name: Generar Prisma Client
         working-directory: ./backend
         run: npx prisma generate
+        env:
+          DATABASE_URL: "postgresql://johndoe:randompassword@localhost:5432/mydb?schema=public"
 
       - name: Validar Backend - Pruebas y Cobertura (Mínimo 70%)
         working-directory: ./backend
