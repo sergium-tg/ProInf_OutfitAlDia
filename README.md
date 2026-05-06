@@ -34,8 +34,8 @@ cd ProInf_OutfitAlDia
 ### 2. Configurar el Backend
 1. Navegar a la carpeta del servidor: `cd backend`
 2. Instalar las dependencias: `npm install`
-3. Crea un archivo `.env` en la raíz de `/backend` y agrega la URL de conexión a tu base de datos (el enlace es a modo de ejemplo):
-   \`DATABASE_URL="postgresql://usuario:password@servidor.neon.tech/neondb?sslmode=require"\`
+3. Crea un archivo `.env` en la raíz de `/backend` y agrega la siguiente linea de texto para agregar la base de datos:
+   `DATABASE_URL="postgresql://usuario:password@servidor.neon.tech/neondb?sslmode=require"`
 4. Generar el cliente de Prisma: `npx prisma generate`
 5. Sincronizar la base de datos: `npx prisma db push`
 6. Iniciar el servidor de desarrollo: `npx ts-node src/index.ts`
