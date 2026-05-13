@@ -2,7 +2,7 @@ name: CI Pipeline - Outfit Al Día
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "refinado-codigo"]
   pull_request:
     branches: [ "main" ]
 
