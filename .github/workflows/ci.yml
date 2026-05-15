@@ -1,0 +1,83 @@
+name: CI OUTFITALDIA
+
+on:
+  push:
+    branches: [ main, dev, refinado-codigo ]
+  pull_request:
+    branches: [ main, dev ]
+
+jobs:
+  frontend-ci:
+    name: Frontend Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./frontend
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - name: Install Dependencies
+        run: npm ci
+      - name: Run Tests
+        run: npm run test.coverage
+
+  backend-ci:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:latest
+        env:
+          POSTGRES_USER: user
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: outfitaldia_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    defaults:
+      run:
+        working-directory: ./backend
+
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Create .env
+        run: |
+          echo "DATABASE_URL=postgresql://user:password@localhost:5432/outfitaldia_test" > .env
+          echo "JWT_SECRET=test_secret_key" >> .env
+
+      - name: Install Dependencies
+        run: npm ci
+        env:
+          DATABASE_URL: "postgresql://user:password@localhost:5432/outfitaldia_test"
+
+      - name: Generate Prisma
+        run: npx prisma generate
+        env:
+          DATABASE_URL: "postgresql://user:password@localhost:5432/outfitaldia_test"
+
+      - name: DB Push
+        run: npx prisma db push
+        env:
+          DATABASE_URL: "postgresql://user:password@localhost:5432/outfitaldia_test"
+
+      - name: Run Tests
+        run: npm run test:coverage
+        env:
+          DATABASE_URL: "postgresql://user:password@localhost:5432/outfitaldia_test"
+          JWT_SECRET: "test_secret_key"
