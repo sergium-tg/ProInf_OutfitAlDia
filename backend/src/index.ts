@@ -12,7 +12,7 @@ const app = express();
 const connectionString = process.env.DATABASE_URL;
 const pool = new Pool({ connectionString });
 const adapter = new PrismaPg(pool as any);
-const prisma = new PrismaClient({ adapter });
+export const prisma = new PrismaClient({ adapter });
 
 const JWT_SECRET = process.env.JWT_SECRET || 'super_secreto_outfit_al_dia_123';
 
@@ -479,8 +479,9 @@ app.delete('/outfits/:id', authenticateToken, async (req: any, res: any) => {
   }
 });
 
-// ==========================================
-// INICIALIZACIÓN DEL SERVIDOR
-// ==========================================
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🚀 Backend corriendo en el puerto ${PORT}`));
+export default app;
+
+if (require.main === module) {
+  const PORT = process.env.PORT || 3000;
+  app.listen(PORT, () => console.log(`🚀 Backend corriendo en el puerto ${PORT}`));
+}

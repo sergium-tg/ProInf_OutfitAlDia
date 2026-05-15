@@ -32,7 +32,6 @@ jobs:
   backend-ci:
     name: Backend Tests & Coverage
     runs-on: ubuntu-latest
-    # Levantamos PostgreSQL para que Prisma pueda conectarse durante los tests
     services:
       postgres:
         image: postgres:latest
@@ -70,7 +69,6 @@ jobs:
         env:
           DATABASE_URL: postgresql://user:password@localhost:5432/outfitaldia_test
 
-      # Sincronizamos el esquema con la base de datos temporal
       - name: Push Database Schema
         run: npx prisma db push
         env:
@@ -80,4 +78,4 @@ jobs:
         run: npm run test:coverage
         env:
           DATABASE_URL: postgresql://user:password@localhost:5432/outfitaldia_test
-          JWT_SECRET: test_secret_key # Necesario para tus tests de auth
+          JWT_SECRET: test_secret_key
