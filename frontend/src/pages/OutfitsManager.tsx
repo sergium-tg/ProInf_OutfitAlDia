@@ -20,12 +20,7 @@ const OutfitsManager: React.FC = () => {
   const [soloFavoritos, setSoloFavoritos] = useState(false);
   const [outfitAEliminar, setOutfitAEliminar] = useState<number | null>(null);
 
-  useIonViewWillEnter(() => {
-    if (token) { 
-      fetchPrendas(); 
-      fetchOutfits(); 
-    }
-  });
+  ;
 
   const fetchPrendas = async () => {
     try {
@@ -40,7 +35,12 @@ const OutfitsManager: React.FC = () => {
       setOutfits(res.data);
     } catch (e) { console.error(e); }
   };
-
+  useIonViewWillEnter(() => {
+    if (token) { 
+      fetchPrendas(); 
+      fetchOutfits(); 
+    }
+  });
   const toggleSelect = (prenda: any) => {
     const isSelected = selectedPrendas.some(p => p.id === prenda.id);
     if (isSelected) {

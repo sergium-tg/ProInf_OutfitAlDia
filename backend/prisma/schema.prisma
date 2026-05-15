@@ -1,21 +1,21 @@
-datasource db {
-  provider = "postgresql"
-}
-
 generator client {
   provider = "prisma-client-js"
 }
 
+datasource db {
+  provider = "postgresql"
+}
+
 model Usuario {
-  id              Int       @id @default(autoincrement())
-  nombre_usuario  String
-  email           String    @unique
-  password_hash   String
-  dias_no_rep     Int?      @default(7)
-  dias_olvido     Int?      @default(30)
-  activo          Boolean   @default(true)
-  prendas         Prendas[]
-  outfits         Outfit[]
+  id             Int       @id @default(autoincrement())
+  nombre_usuario String
+  email          String    @unique
+  password_hash  String
+  dias_no_rep    Int?      @default(7)
+  dias_olvido    Int?      @default(30)
+  activo         Boolean   @default(true)
+  outfits        Outfit[]
+  prendas        Prendas[]
 }
 
 model Prendas {
@@ -30,32 +30,32 @@ model Prendas {
   conceptual     Boolean            @default(false)
   comprar        Boolean            @default(false)
   usuario_id     Int
-  usuario        Usuario            @relation(fields: [usuario_id], references: [id])
   historial      Historial_prenda[]
   outfits        Outfit_Prendas[]
+  usuario        Usuario            @relation(fields: [usuario_id], references: [id])
 }
 
 model Historial_prenda {
-  id          Int      @id @default(autoincrement())
-  fecha_uso   DateTime @default(now())
-  prenda_id   Int
-  prenda      Prendas  @relation(fields: [prenda_id], references: [id], onDelete: Cascade)
+  id        Int      @id @default(autoincrement())
+  fecha_uso DateTime @default(now())
+  prenda_id Int
+  prenda    Prendas  @relation(fields: [prenda_id], references: [id], onDelete: Cascade)
 }
 
 model Outfit {
-  id        Int      @id @default(autoincrement())
+  id        Int              @id @default(autoincrement())
   nombre    String
-  favorito  Boolean  @default(false)
+  favorito  Boolean          @default(false)
   usuarioId Int
-  usuario   Usuario  @relation(fields: [usuarioId], references: [id])
+  usuario   Usuario          @relation(fields: [usuarioId], references: [id])
   prendas   Outfit_Prendas[]
 }
 
 model Outfit_Prendas {
   outfitId Int
   prendaId Int
-  outfit   Outfit   @relation(fields: [outfitId], references: [id], onDelete: Cascade)
-  prenda   Prendas  @relation(fields: [prendaId], references: [id], onDelete: Cascade)
+  outfit   Outfit  @relation(fields: [outfitId], references: [id], onDelete: Cascade)
+  prenda   Prendas @relation(fields: [prendaId], references: [id], onDelete: Cascade)
 
   @@id([outfitId, prendaId])
 }
