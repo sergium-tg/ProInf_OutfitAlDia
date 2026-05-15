@@ -66,12 +66,21 @@ jobs:
 
       - name: Install Dependencies
         run: npm ci
+        env:
+          DATABASE_URL: "postgresql://user:password@localhost:5432/outfitaldia_test"
 
       - name: Generate Prisma Client
         run: npx prisma generate
+        env:
+          DATABASE_URL: "postgresql://user:password@localhost:5432/outfitaldia_test"
 
       - name: Push Database Schema
         run: npx prisma db push
+        env:
+          DATABASE_URL: "postgresql://user:password@localhost:5432/outfitaldia_test"
 
       - name: Run Backend Tests
         run: npm run test:coverage
+        env:
+          DATABASE_URL: "postgresql://user:password@localhost:5432/outfitaldia_test"
+          JWT_SECRET: "test_secret_key"
