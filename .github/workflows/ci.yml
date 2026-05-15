@@ -1,0 +1,58 @@
+name: CI Pipeline - Outfit Al Día
+
+on:
+  push:
+    branches: [ "main", "refinado-codigo"]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  validate-frontend:
+    name: Validación del Frontend
+    runs-on: windows-latest # Ejecución en Windows 10/11
+
+    steps:
+      - name: Descargar código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Instalar dependencias
+        working-directory: ./frontend
+        run: npm ci
+
+      - name: Ejecutar Linter (Calidad de código)
+        working-directory: ./frontend
+        run: npm run lint
+
+      - name: Validar Pruebas y Cobertura (70%)
+        working-directory: ./frontend
+        run: npm run test.unit
+
+  validate-backend:
+    name: Validación del Backend
+    runs-on: windows-latest
+    
+    steps:
+      - name: Descargar código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Instalar dependencias
+        working-directory: ./backend
+        run: npm ci
+
+      - name: Generar cliente de Prisma
+        working-directory: ./backend
+        run: npx prisma generate
+
+      - name: Ejecutar Pruebas del Backend
+        working-directory: ./backend
+        run: npm test
