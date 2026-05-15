@@ -3,10 +3,11 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
-  "scripts": {
-    "test": "jest",
-    "test:coverage": "jest --coverage --maxWorkers=1 --forceExit"
-  },
+ "scripts": {
+  "test": "jest",
+  "test:coverage": "jest --coverage --maxWorkers=1 --forceExit",
+  "postinstall": "prisma generate"
+},
   "keywords": [],
   "author": "",
   "license": "ISC",
