@@ -5,8 +5,7 @@
   "main": "index.js",
  "scripts": {
   "test": "jest",
-  "test:coverage": "jest --coverage --maxWorkers=1 --forceExit",
-  "postinstall": "prisma generate"
+  "test:coverage": "jest --coverage --maxWorkers=1 --forceExit"
 },
   "keywords": [],
   "author": "",
