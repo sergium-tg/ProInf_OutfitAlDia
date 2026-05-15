@@ -59,20 +59,19 @@ jobs:
           cache: 'npm'
           cache-dependency-path: './backend/package-lock.json'
 
-      # Aquí se inyectan las variables para que el 'postinstall' no falle
+      - name: Inyectar variables de entorno físicas
+        run: |
+          echo "DATABASE_URL=postgresql://user:password@localhost:5432/outfitaldia_test" > .env
+          echo "JWT_SECRET=test_secret_key" >> .env
+
       - name: Install Dependencies
         run: npm ci
-        env:
-          DATABASE_URL: postgresql://user:password@localhost:5432/outfitaldia_test
 
-      # Quitamos el paso de 'npx prisma generate' porque ya lo hizo el paso anterior
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
       - name: Push Database Schema
         run: npx prisma db push
-        env:
-          DATABASE_URL: postgresql://user:password@localhost:5432/outfitaldia_test
 
       - name: Run Backend Tests
         run: npm run test:coverage
-        env:
-          DATABASE_URL: postgresql://user:password@localhost:5432/outfitaldia_test
-          JWT_SECRET: test_secret_key
